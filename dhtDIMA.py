@@ -7,7 +7,7 @@ from IdentitySalience import ClusteringEngine, IdentityEngine, WeightAdjuster
 
 class DHTwdDIMA:
     def __init__(self, N, M, G, W, distributions, agent_features, themes, normative_groups,
-                 conspirators_idx=None, debunkers_idx=None, dima_beta=None, seed = 42, app_factor=None, salience_threshold = None, dev = None, logger = None):
+                 conspirators_idx=None, debunkers_idx=None, dima_beta=None, seed = 42, app_factor=None, salience_threshold = None, dev = None):
         self.N, self.M, self.G, self.W = N, M, G, W
         self.themes = themes
         self.current_theme = "politics"
@@ -17,7 +17,6 @@ class DHTwdDIMA:
             self.identity = IdentityEngine(agent_features, normative_groups, N, self.clusterer.max_clusters)
         else:
             self.identity = IdentityEngine(agent_features, normative_groups, N, self.clusterer.max_clusters, salience_threshold = salience_threshold)
-        self.logger = logger
 
         if dev is None:
             self.dev = 0
@@ -86,7 +85,7 @@ class DHTwdDIMA:
 
         # X = [self.beliefs.distributions[i][self.M - 1].rvs() for i in range(self.N)]
 
-        X = [self.beliefs.distributions[i][self.M - 1].rvs() + np.random.normal(0, self.dev) for i in range(self.N)]
+        X = [self.beliefs.distributions[i][self.M - 1].rvs() - np.random.normal(0, self.dev) for i in range(self.N)]
 
 
         self.beliefs.observe_and_update_public_beliefs(X, self.roles.conspirators, self.roles.debunkers)
@@ -106,77 +105,15 @@ class DHTwdDIMA:
             'normative': identity_types.count('normative') / len(identity_types)
         })
 
-    # def run(self, T, theme_schedule=None):
-    #     history = np.zeros((T + 1, self.N, self.M))
-    #     history[0] = self.beliefs.q.copy()
-    #     for t in range(1, T + 1):
-    #         if theme_schedule:
-    #             self.current_theme = theme_schedule(t)
-    #         self.step(t, T)
-    #         history[t] = self.beliefs.q.copy()
-    #     return history
-
-
-    def run(self, T, theme_schedule=None, run_id=None, output_dir="logs"):
-        
-        if self.logger is None and run_id is not None:
-            from logger import SimulationLogger
-            self.logger = SimulationLogger(run_id, output_dir)
-    
+    def run(self, T, theme_schedule=None):
         history = np.zeros((T + 1, self.N, self.M))
         history[0] = self.beliefs.q.copy()
-    
         for t in range(1, T + 1):
             if theme_schedule:
                 self.current_theme = theme_schedule(t)
-    
             self.step(t, T)
             history[t] = self.beliefs.q.copy()
-    
-            if self.logger:
-                self.logger.log_step(t, self.beliefs.q, self.get_identity_states())
-                for i in self.roles.regulars:
-                    evidence_strength = self.get_evidence_strength(i)
-                    belief_before = history[t - 1][i]
-                    belief_after = history[t][i]
-
-                    # belief_before = self.q_history[t - 1][i]
-                    # belief_after = self.q_history[t][i]
-    
-                    if evidence_strength[-1] > 2.0 and belief_after[-1] < belief_before[-1]:
-                        context = {
-                            "dima_beta": self.weight_adjuster.dima_beta,
-                            #"salience": self.identity.salience[i],
-                            "local_consensus": self.get_local_consensus(i),
-                            "signal_strength": evidence_strength[-1],
-                            "network_position": self.get_network_metrics(i)
-                        }
-                        self.logger.log_reversal_event(i, t, evidence_strength[-1],
-                                                       belief_before[-1], belief_after[-1], context)
-    
-        if self.logger:
-            self.logger.finalize()
-
         return history
-   
-    def get_identity_states(self):
-        return np.array([1 if id_type != 'personal' else 0 for id_type, _ in self.roles.active_identities])
-
-    def get_evidence_strength(self, agent_id):
-        return [self.beliefs.distributions[agent_id][k].mean for k in range(self.M)]
-    
-    def get_local_consensus(self, agent_id):
-        neighbors = list(self.G.neighbors(agent_id))
-        if not neighbors:
-            return 0.0
-        neighbor_beliefs = self.beliefs.q[neighbors, -1]  # belief in truth
-        return float(np.mean(neighbor_beliefs))
-    
-    def get_network_metrics(self, agent_id):
-        import networkx as nx
-        clustering = nx.clustering(self.G, agent_id)
-        centrality = nx.degree_centrality(self.G)[agent_id]
-        return {"clustering": clustering, "centrality": centrality}
 
     
     def export_run_data(self, filename):

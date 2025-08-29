@@ -237,6 +237,9 @@ class WeightAdjuster:
                 for j in far_neighbors:
                     W_dyn[i, j] *= (1 - self.dima_beta)
 
+                # print(' Close_neighbour: {}, far_neighbour: {}'.format(len(close_neighbors), len(far_neighbors)))
+
+                # print(f"[adjust] Agent {i} (normative:{id_val}) - upweighted {len(close_neighbors)} close neighbors, downweighted {len(far_neighbors)} far neighbors (threshold={normative_dist_threshold}).")
 
             else:
                 # print(f"[adjust] Agent {i} has unknown identity type: {id_type}. Skipping.")
@@ -251,5 +254,24 @@ class WeightAdjuster:
         return W_dyn
 
 
-
+    # def adjust(self, regulars, active_identities, clusterer, current_theme):
+    #     W_dyn = self.W.copy()
+    #     for i in regulars:
+    #         id_type, id_val = active_identities[i]
+    #         if id_type == 'personal':
+    #             continue
+    #         result = clusterer.perceive_and_cluster(i, current_theme)
+    #         if result is None:
+    #             continue
+    #         clusters, _ = result
+    #         group = clusters.get(id_val, []) if id_type == 'dynamic' else []
+    #         for j in self.G.neighbors(i):
+    #             if id_type == 'dynamic' and j in group:
+    #                 W_dyn[i, j] *= (1 + self.dima_beta)
+    #             else:
+    #                 W_dyn[i, j] *= (1 - self.dima_beta)
+    #         if W_dyn[i].sum() > 0:
+    #             W_dyn[i] /= W_dyn[i].sum()
+    #     #print("W_dyn", W_dyn)
+    #     return W_dyn
 
